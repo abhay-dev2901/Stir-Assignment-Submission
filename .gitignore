@@ -1,0 +1,28 @@
+# Virtual environment
+.venv/
+env/
+venv/
+
+# Environment variables
+.env
+.env.*
+
+# Byte-compiled files
+__pycache__/
+*.py[cod]
+
+# Editor and OS files
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test coverage
+htmlcov/
+*.coverage
+*.cover
+.cache
+
+
