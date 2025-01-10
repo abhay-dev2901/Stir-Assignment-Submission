@@ -1,0 +1,10 @@
+198.23.239.134:6540:pbfulnbf:4axqxg6yzopm
+207.244.217.165:6712:pbfulnbf:4axqxg6yzopm
+107.172.163.27:6543:pbfulnbf:4axqxg6yzopm
+64.137.42.112:5157:pbfulnbf:4axqxg6yzopm
+173.211.0.148:6641:pbfulnbf:4axqxg6yzopm
+161.123.152.115:6360:pbfulnbf:4axqxg6yzopm
+167.160.180.203:6754:pbfulnbf:4axqxg6yzopm
+154.36.110.199:6853:pbfulnbf:4axqxg6yzopm
+173.0.9.70:5653:pbfulnbf:4axqxg6yzopm
+173.0.9.209:5792:pbfulnbf:4axqxg6yzopm
