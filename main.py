@@ -1,42 +1,122 @@
-import time
-from datetime import datetime
-import json
+import random
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+import time
 import requests
-from dotenv import load_dotenv
-import os
 from pymongo import MongoClient
 from datetime import datetime
-from bson import ObjectId  
-import json
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
-TWITTER_USERNAME = os.getenv('TWITTER_USERNAME')
-TWITTER_PASSWORD = os.getenv('TWITTER_PASSWORD')
+# Proxy list // Got it from Proxymesh
+proxy_list = [
+    "198.23.239.134:6540:pbfulnbf:4axqxg6yzopm",
+    "207.244.217.165:6712:pbfulnbf:4axqxg6yzopm",
+    "107.172.163.27:6543:pbfulnbf:4axqxg6yzopm",
+    "64.137.42.112:5157:pbfulnbf:4axqxg6yzopm",
+    "173.211.0.148:6641:pbfulnbf:4axqxg6yzopm",
+    "161.123.152.115:6360:pbfulnbf:4axqxg6yzopm",
+    "167.160.180.203:6754:pbfulnbf:4axqxg6yzopm",
+    "154.36.110.199:6853:pbfulnbf:4axqxg6yzopm",
+    "173.0.9.70:5653:pbfulnbf:4axqxg6yzopm",
+    "173.0.9.209:5792:pbfulnbf:4axqxg6yzopm"
+]
 
+# Function to configure a proxy
+def configure_proxy(options, proxy):
+    ip, port, username, password = proxy.split(":")
+    
+    # Proxy without authentication
+    options.add_argument(f'--proxy-server=http://{ip}:{port}')
+    
+    # Proxy authentication extension
+    proxy_auth_plugin_path = "proxy_auth_plugin.zip"
 
+    manifest_json = """
+    {
+        "version": "1.0.0",
+        "manifest_version": 2,
+        "name": "Chrome Proxy",
+        "permissions": [
+            "proxy",
+            "tabs",
+            "unlimitedStorage",
+            "storage",
+            "<all_urls>",
+            "webRequest",
+            "webRequestBlocking"
+        ],
+        "background": {
+            "scripts": ["background.js"]
+        },
+        "minimum_chrome_version":"22.0.0"
+    }
+    """
+    background_js = f"""
+    var config = {{
+            mode: "fixed_servers",
+            rules: {{
+            singleProxy: {{
+                scheme: "http",
+                host: "{ip}",
+                port: parseInt("{port}")
+            }},
+            bypassList: ["localhost"]
+            }}
+        }};
+    chrome.proxy.settings.set({{value: config, scope: "regular"}}, function() {{}});
+    chrome.webRequest.onAuthRequired.addListener(
+        function(details) {{
+            return {{
+                authCredentials: {{
+                    username: "{username}",
+                    password: "{password}"
+                }}
+            }};
+        }},
+        {{urls: ["<all_urls>"]}},
+        ["blocking"]
+    );
+    """
+
+    with open("manifest.json", "w") as file:
+        file.write(manifest_json)
+
+    with open("background.js", "w") as file:
+        file.write(background_js)
+
+    from zipfile import ZipFile
+
+    with ZipFile(proxy_auth_plugin_path, "w") as zp:
+        zp.write("manifest.json")
+        zp.write("background.js")
+
+    options.add_extension(proxy_auth_plugin_path)
+
+# Function to get a Selenium driver with a random proxy
 def get_driver():
     options = Options()
     options.add_argument("--headless")  # Run in headless mode
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+    
+    # Pick a random proxy
+    proxy = random.choice(proxy_list)
+    print(f"Using Proxy: {proxy}")
+    
+    # Configure the proxy
+    configure_proxy(options, proxy)
 
     driver = webdriver.Chrome()
-    return driver
+    return driver, proxy
 
 
-
-# ProxyMesh credentials and URL
-# proxy_url = "us.proxymesh.com:31280"  # Replace with your ProxyMesh proxy
-# username = "your-username"  # Replace with your ProxyMesh username
-# password = "your-password"  # Replace with your ProxyMesh password
-
+# TWITTER_USERNAME = os.getenv('TWITTER_USERNAME')
+# TWITTER_PASSWORD = os.getenv('TWITTER_PASSWORD')
 
 
 def login_to_twitter(driver, username, password):
@@ -94,9 +174,7 @@ def click_explore_button(driver):
 def get_trending_topics(driver):
     try:
     
-        trending_button = driver.find_element(By.CSS_SELECTOR, "a[href='/explore/tabs/keyword']")
-
-       
+        trending_button = driver.find_element(By.CSS_SELECTOR, "a[href='/explore/tabs/trending']")
         trending_button.click()
         print("Trending button clicked.")
 
@@ -148,7 +226,7 @@ def save_to_mongo(trends, ip):
         data = {
             "_id": f"{ip}_{datetime.now().timestamp()}",  # Custom _id field
             "datetime": datetime.now().isoformat(),
-            "ip_address": ip,
+            "ip_address": ip.split(":")[0],
             "trends": trends
         }
         
@@ -162,14 +240,11 @@ def save_to_mongo(trends, ip):
         raise
 
 
-
-
-
 def main(username, password):
     driver = None
     try:
         print("Starting scraping process...")
-        driver = get_driver()
+        driver, proxy = get_driver()
 
         if not login_to_twitter(driver, username, password):
             raise Exception("Failed to login to Twitter")
@@ -181,8 +256,7 @@ def main(username, password):
         if not trends:
             raise Exception("Failed to get trending topics")
 
-        ip = requests.get('https://api.ipify.org').text
-        result = save_to_mongo(trends, ip)
+        result = save_to_mongo(trends, proxy)
         return result
 
     except Exception as e:
@@ -194,4 +268,4 @@ def main(username, password):
             print("Browser closed.")
 
 if __name__ == "__main__":
-    main(TWITTER_USERNAME, TWITTER_PASSWORD)
+    main("twitter-username", "twitter-password")
