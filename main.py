@@ -164,6 +164,7 @@ def save_to_mongo(trends, ip):
 
 
 
+
 def main(username, password):
     driver = None
     try:
